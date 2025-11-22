@@ -19,7 +19,7 @@ from typing import Any
 import structlog
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -65,8 +65,8 @@ class RunBrowserAgentResponse(BaseModel):
     preview_url: str | None = None
     project_url: str | None = None
     status: str = "done"
-    steps: list[dict[str, Any]] = []
-    debug: dict[str, Any] = {}
+    steps: list[dict[str, Any]] = Field(default_factory=list)
+    debug: dict[str, Any] = Field(default_factory=dict)
     raw: str
     elapsed_sec: float
 

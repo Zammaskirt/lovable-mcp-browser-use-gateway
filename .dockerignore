@@ -49,10 +49,13 @@ env/
 .pytest_cache/
 coverage.xml
 *.cover
+tests/
 
 # Documentation
 docs/_build/
 site/
+*.md
+!README.md
 
 # Environment files
 .env
@@ -71,9 +74,7 @@ npm-debug.log
 yarn-error.log
 
 # Docker
-Dockerfile
 docker-compose.yml
-.dockerignore
 
 # CI/CD
 .github/
@@ -87,6 +88,7 @@ auth.json
 .cache/
 tmp/
 temp/
+fly.toml
 
 # Large files
 *.tar.gz
