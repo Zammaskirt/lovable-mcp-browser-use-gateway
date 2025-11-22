@@ -53,9 +53,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpixman-1-0 \
     libgdk-pixbuf-2.0-0 \
     libgtk-3-0 \
-    libgconf-2-4 \
-    libappindicator1 \
-    libindicator7 \
     libsecret-1-0 \
     libxss1 \
     libgbm1 \
