@@ -61,8 +61,8 @@ def _run_saik0s_cli(task: str) -> str:
                     env=env,
                 )
 
+                combined_output = (result.stdout or "") + (result.stderr or "")
                 if result.returncode != 0:
-                    combined_output = (result.stdout or "") + (result.stderr or "")
                     logger.error(
                         "Saik0s CLI failed",
                         returncode=result.returncode,
@@ -72,8 +72,8 @@ def _run_saik0s_cli(task: str) -> str:
                         result.returncode, cmd, output=combined_output, stderr=result.stderr
                     )
 
-                logger.info("Saik0s CLI succeeded", output_len=len(result.stdout))
-                return result.stdout
+                logger.info("Saik0s CLI succeeded", output_len=len(combined_output))
+                return combined_output
 
             except subprocess.TimeoutExpired as e:
                 logger.error("Saik0s CLI timeout", timeout=timeout)
@@ -101,6 +101,13 @@ def run_browser_agent(task: str, context: dict[str, Any] | None = None) -> dict[
     """
     try:
         result_text = _run_saik0s_cli(task)
+        if not result_text.strip():
+            logger.error("Saik0s CLI returned empty output")
+            return {
+                "ok": False,
+                "result_text": result_text,
+                "error": "Browser agent returned no output",
+            }
         return {
             "ok": True,
             "result_text": result_text,
