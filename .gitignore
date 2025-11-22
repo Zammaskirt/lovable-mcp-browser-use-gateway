@@ -63,7 +63,7 @@ history/
 *.mp4
 
 # Fly.io
-fly.toml
+# fly.toml is committed for CI/CD deployment
 .flyrc
 
 # Build
