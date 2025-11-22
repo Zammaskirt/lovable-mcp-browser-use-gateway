@@ -1,73 +1,41 @@
 # Optimized Dockerfile for Lovable MCP Gateway
 # Minimal Python image with Playwright dependencies installed
 
-# Stage 1: Builder
-FROM python:3.11-slim as builder
+# Stage 1: Builder (installs only runtime deps)
+FROM python:3.11-slim AS builder
 
+ENV UV_CACHE_DIR=/tmp/uv-cache
 WORKDIR /app
 
-# Install system dependencies for building
+# Minimal build tooling
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
+    curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv
 RUN pip install --no-cache-dir uv
 
-# Copy project files
+# Copy dependency manifests and README (required for package build)
 COPY pyproject.toml uv.lock* README.md ./
 
-# Build dependencies
-RUN uv sync --frozen --no-dev
+# Install production deps into a venv
+RUN uv sync --frozen --no-dev \
+    && rm -rf ${UV_CACHE_DIR}
 
-# Stage 2: Runtime - minimal Python with Playwright dependencies
+# Stage 2: Runtime (thin gateway-only image)
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install Playwright system dependencies and curl
+# Runtime utilities only
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    libglib2.0-0 \
-    libsm6 \
-    libxrender1 \
-    libxext6 \
-    libxkbcommon0 \
-    libdbus-1-3 \
-    libatspi2.0-0 \
-    libxcb1 \
-    libxcb-shm0 \
-    libxcb-render0 \
-    libxcb-xfixes0 \
-    libxcb-shape0 \
-    libxcb-xinerama0 \
-    libxcb-xkb1 \
-    libxkbcommon-x11-0 \
-    libfontconfig1 \
-    libfreetype6 \
-    libharfbuzz0b \
-    libpango-1.0-0 \
-    libpangoft2-1.0-0 \
-    libpangocairo-1.0-0 \
-    libcairo2 \
-    libpixman-1-0 \
-    libgdk-pixbuf-2.0-0 \
-    libgtk-3-0 \
-    libsecret-1-0 \
-    libxss1 \
-    libgbm1 \
-    libnss3 \
-    libnspr4 \
-    fonts-liberation \
-    xdg-utils \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy virtual environment from builder
+# Copy prebuilt venv and app code
 COPY --from=builder /app/.venv /app/.venv
-
-# Copy only necessary application files
 COPY src/ ./src/
-COPY scripts/ ./scripts/
 COPY entrypoint.sh .
 COPY README.md .
 
@@ -86,4 +54,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Run application
 CMD ["sh", "entrypoint.sh"]
-
