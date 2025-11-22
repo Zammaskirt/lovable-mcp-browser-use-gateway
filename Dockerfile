@@ -1,4 +1,5 @@
-# Multi-stage Dockerfile for Lovable MCP Gateway
+# Optimized Dockerfile for Lovable MCP Gateway
+# Uses mcr.microsoft.com/playwright base image to reduce size
 
 # Stage 1: Builder
 FROM python:3.11-slim as builder
@@ -19,64 +20,16 @@ COPY pyproject.toml uv.lock* README.md ./
 # Build dependencies
 RUN uv sync --frozen --no-dev
 
-# Stage 2: Playwright installer
-FROM python:3.11-slim as playwright-installer
+# Stage 2: Runtime with Playwright pre-installed
+FROM mcr.microsoft.com/playwright/python:v1.48.0-jammy
 
 WORKDIR /app
 
-# Install system dependencies for Playwright
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libglib2.0-0 \
-    libx11-6 \
-    libxcb1 \
-    libxkbcommon0 \
-    libxkbcommon-x11-0 \
-    libdbus-1-3 \
-    libfontconfig1 \
-    libfreetype6 \
-    libharfbuzz0b \
-    libpango-1.0-0 \
-    libpangoft2-1.0-0 \
-    libpixman-1-0 \
-    libxext6 \
-    libxrender1 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy venv from builder
-COPY --from=builder /app/.venv /app/.venv
-
-# Install Playwright browsers
-RUN /app/.venv/bin/python -m playwright install --with-deps chromium
-
-# Stage 3: Runtime
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install only runtime system dependencies for Playwright
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libglib2.0-0 \
-    libx11-6 \
-    libxcb1 \
-    libxkbcommon0 \
-    libxkbcommon-x11-0 \
-    libdbus-1-3 \
-    libfontconfig1 \
-    libfreetype6 \
-    libharfbuzz0b \
-    libpango-1.0-0 \
-    libpangoft2-1.0-0 \
-    libpixman-1-0 \
-    libxext6 \
-    libxrender1 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# Install uv in runtime image
+RUN pip install --no-cache-dir uv
 
 # Copy virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv
-
-# Copy Playwright cache from installer
-COPY --from=playwright-installer /root/.cache/ms-playwright /root/.cache/ms-playwright
 
 # Copy only necessary application files
 COPY src/ ./src/
