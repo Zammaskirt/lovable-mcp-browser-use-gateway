@@ -14,11 +14,12 @@ import os
 import re
 import time
 import uuid
-from typing import Any
+from typing import Any, Dict, Optional
 
 import structlog
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
+from fastapi_mcp import FastApiMCP
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -50,36 +51,27 @@ app = FastAPI(
 app.state.limiter = limiter
 
 
-class RunBrowserAgentRequest(BaseModel):
-    """Request model for browser agent execution."""
+class RunInput(BaseModel):
+    """Input schema for the browser agent tool."""
 
     task: str
-    context: dict[str, Any] | None = None
+    context: Optional[Dict[str, Any]] = None
 
 
-class RunBrowserAgentResponse(BaseModel):
-    """Success response model."""
+class RunOutput(BaseModel):
+    """Unified output schema (success or error)."""
 
-    ok: bool = True
-    run_id: str
-    preview_url: str | None = None
-    project_url: str | None = None
-    status: str = "done"
+    ok: bool
+    status: str
+    raw: Optional[str] = None
+    preview_url: Optional[str] = None
+    project_url: Optional[str] = None
+    error_code: Optional[str] = None
+    message: Optional[str] = None
+    run_id: Optional[str] = None
     steps: list[dict[str, Any]] = Field(default_factory=list)
     debug: dict[str, Any] = Field(default_factory=dict)
-    raw: str
-    elapsed_sec: float
-
-
-class ErrorResponse(BaseModel):
-    """Error response model."""
-
-    ok: bool = False
-    run_id: str
-    error_code: str
-    message: str
-    raw: str = ""
-    elapsed_sec: float
+    elapsed_sec: Optional[float] = None
 
 
 def _extract_preview_url(text: str) -> str | None:
@@ -113,8 +105,9 @@ def _map_error_code(error: str) -> str:
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    """Verify Bearer token on protected endpoints."""
-    if request.url.path in ["/health", "/docs", "/openapi.json"]:
+    """Verify Bearer token on protected endpoints, including /tools and /mcp."""
+    path = request.url.path
+    if path in ["/health", "/docs", "/openapi.json"]:
         return await call_next(request)
 
     auth_header = request.headers.get("Authorization", "")
@@ -147,11 +140,14 @@ async def health_check():
     }
 
 
-@app.post("/tools/run_browser_agent", response_model=RunBrowserAgentResponse)
+@app.post(
+    "/tools/run_browser_agent",
+    response_model=RunOutput,
+    summary="Run Lovable browser agent",
+    operation_id="run_browser_agent",
+)
 @limiter.limit(f"{RATE_LIMIT_PER_MIN}/minute")
-async def run_browser_agent_endpoint(
-    request: Request, payload: RunBrowserAgentRequest
-) -> RunBrowserAgentResponse | ErrorResponse:
+async def run_browser_agent_endpoint(payload: RunInput, request: Request) -> RunOutput:
     """
     Execute a browser automation task.
 
@@ -177,11 +173,15 @@ async def run_browser_agent_endpoint(
                 error_code=error_code,
                 elapsed=elapsed,
             )
-            return ErrorResponse(
+            return RunOutput(
+                ok=False,
+                status="error",
                 run_id=run_id,
                 error_code=error_code,
                 message=error_msg,
                 raw=result.get("result_text", ""),
+                steps=result.get("steps", []),
+                debug=result.get("debug", {}),
                 elapsed_sec=elapsed,
             )
 
@@ -195,12 +195,15 @@ async def run_browser_agent_endpoint(
             elapsed=elapsed,
         )
 
-        return RunBrowserAgentResponse(
+        return RunOutput(
             ok=True,
+            status="done",
             run_id=run_id,
             preview_url=preview_url,
-            status="done",
+            project_url=result.get("project_url"),
             raw=result_text,
+            steps=result.get("steps", []),
+            debug=result.get("debug", {}),
             elapsed_sec=elapsed,
         )
 
@@ -213,12 +216,27 @@ async def run_browser_agent_endpoint(
             error_code=error_code,
             elapsed=elapsed,
         )
-        return ErrorResponse(
+        return RunOutput(
+            ok=False,
+            status="error",
             run_id=run_id,
             error_code=error_code,
             message=str(e),
             elapsed_sec=elapsed,
         )
+
+
+# Mount MCP after routes are registered so middleware and schemas apply to /mcp.
+mcp = FastApiMCP(app)
+mcp.mount_http()
+
+
+@app.on_event("startup")
+async def _start_mcp_http_transport() -> None:
+    """Eagerly start the MCP HTTP session manager to avoid cold-start race conditions."""
+    transport = getattr(mcp, "_http_transport", None)
+    if transport is not None:
+        await transport._ensure_session_manager_started()  # type: ignore[attr-defined]
 
 
 if __name__ == "__main__":

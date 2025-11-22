@@ -81,10 +81,11 @@ class TestResponseModels:
 
     def test_success_response_model(self):
         """Test success response model."""
-        from src.server import RunBrowserAgentResponse
+        from src.server import RunOutput
 
-        response = RunBrowserAgentResponse(
+        response = RunOutput(
             ok=True,
+            status="done",
             run_id="test-123",
             preview_url="https://test.lovable.dev",
             raw="output",
@@ -96,10 +97,11 @@ class TestResponseModels:
 
     def test_error_response_model(self):
         """Test error response model."""
-        from src.server import ErrorResponse
+        from src.server import RunOutput
 
-        response = ErrorResponse(
+        response = RunOutput(
             ok=False,
+            status="error",
             run_id="test-123",
             error_code="TIMEOUT_BUILD",
             message="Build timed out",

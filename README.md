@@ -72,6 +72,12 @@ Successful response shape:
 }
 ```
 
+## MCP Endpoint
+- Streamable MCP HTTP transport exposed at `/mcp` (same Bearer token as `/tools`)
+- Auto-discovers the `run_browser_agent` tool from the FastAPI route
+- Point MCP clients (e.g., n8n MCP Client node) at `https://<your-app>.fly.dev/mcp` with header `Authorization: Bearer <token>`
+- Local check: `uv run uvicorn src.server:app --host 0.0.0.0 --port 8080` then connect an MCP inspector to `http://localhost:8080/mcp`
+
 ## Docker (slim multi-stage)
 The new multi-stage Dockerfile installs only runtime dependencies (Saik0s engine, FastAPI stack, Playwright + Chromium) and strips build caches. Target size: <2 GB compressed.
 

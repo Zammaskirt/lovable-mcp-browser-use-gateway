@@ -87,10 +87,11 @@ class TestResponseStructure:
         """Test response includes required fields."""
         # This test verifies the response model structure
         # even if execution fails
-        from src.server import RunBrowserAgentResponse
+        from src.server import RunOutput
 
-        response = RunBrowserAgentResponse(
+        response = RunOutput(
             ok=True,
+            status="done",
             run_id="test-id",
             raw="test output",
             elapsed_sec=1.0,
@@ -109,10 +110,11 @@ class TestErrorHandling:
 
     def test_error_response_structure(self, client):
         """Test error response has correct structure."""
-        from src.server import ErrorResponse
+        from src.server import RunOutput
 
-        error = ErrorResponse(
+        error = RunOutput(
             ok=False,
+            status="error",
             run_id="test-id",
             error_code="TIMEOUT_BUILD",
             message="Test error",
