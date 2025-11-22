@@ -63,7 +63,7 @@ timeout = "5s"
 [vm]
 cpu_kind = "performance"
 cpus = 4
-memory_mb = 4096
+memory_mb = 8192
 
 # Autoscaling (optional)
 # [autoscaling]
