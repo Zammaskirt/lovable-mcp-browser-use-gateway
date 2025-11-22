@@ -1,5 +1,5 @@
 # Optimized Dockerfile for Lovable MCP Gateway
-# Uses mcr.microsoft.com/playwright base image to reduce size
+# Minimal Python image with Playwright dependencies installed
 
 # Stage 1: Builder
 FROM python:3.11-slim as builder
@@ -20,14 +20,49 @@ COPY pyproject.toml uv.lock* README.md ./
 # Build dependencies
 RUN uv sync --frozen --no-dev
 
-# Stage 2: Runtime with Playwright pre-installed
-FROM mcr.microsoft.com/playwright/python:v1.48.0-jammy
+# Stage 2: Runtime - minimal Python with Playwright dependencies
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install curl for health checks and pip for package management
+# Install Playwright system dependencies and curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    libglib2.0-0 \
+    libsm6 \
+    libxrender1 \
+    libxext6 \
+    libxkbcommon0 \
+    libdbus-1-3 \
+    libatspi2.0-0 \
+    libxcb1 \
+    libxcb-shm0 \
+    libxcb-render0 \
+    libxcb-xfixes0 \
+    libxcb-shape0 \
+    libxcb-xinerama0 \
+    libxcb-xkb1 \
+    libxkbcommon-x11-0 \
+    libfontconfig1 \
+    libfreetype6 \
+    libharfbuzz0b \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libpixman-1-0 \
+    libgdk-pixbuf-2.0-0 \
+    libgtk-3-0 \
+    libgconf-2-4 \
+    libappindicator1 \
+    libindicator7 \
+    libsecret-1-0 \
+    libxss1 \
+    libgbm1 \
+    libnss3 \
+    libnspr4 \
+    fonts-liberation \
+    xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment from builder
