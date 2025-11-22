@@ -2,7 +2,7 @@
 # Copy to fly.toml and customize for your deployment
 
 app = "lovable-mcp-gateway"
-primary_region = "lhr"
+primary_region = "cdg"
 
 [build]
 dockerfile = "Dockerfile"
@@ -61,9 +61,9 @@ timeout = "5s"
 
 # Machine configuration
 [vm]
-cpu_kind = "shared"
-cpus = 2
-memory_mb = 2048
+cpu_kind = "performance"
+cpus = 4
+memory_mb = 4096
 
 # Autoscaling (optional)
 # [autoscaling]
