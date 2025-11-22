@@ -35,29 +35,19 @@ jobs:
             ${{ runner.os }}-uv-
 
       - name: Install dependencies
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          uv sync --dev
+        run: ~/.local/bin/uv sync --dev
 
       - name: Lint with ruff
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          uv run ruff check src tests
+        run: ~/.local/bin/uv run ruff check src tests
 
       - name: Format check with black
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          uv run black --check src tests
+        run: ~/.local/bin/uv run black --check src tests
 
       - name: Type check with mypy
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          uv run mypy src || true
+        run: ~/.local/bin/uv run mypy src || true
 
       - name: Run tests
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          uv run pytest tests/ -v --cov=src --cov-report=xml
+        run: ~/.local/bin/uv run pytest tests/ -v --cov=src --cov-report=xml
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
