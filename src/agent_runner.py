@@ -8,12 +8,11 @@ All environment variables are read by Saik0s from the process environment.
 import asyncio
 import os
 import subprocess
-import sys
 from typing import Any
 
 import structlog
 from pydantic import BaseModel
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import RetryError, Retrying, stop_after_attempt, wait_fixed
 
 logger = structlog.get_logger(__name__)
 
@@ -33,60 +32,52 @@ def _get_agent_config() -> dict[str, Any]:
     }
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def _run_saik0s_cli(task: str) -> str:
-    """
-    Run Saik0s CLI via subprocess.
+    """Run Saik0s CLI via subprocess with retry handling."""
 
-    Args:
-        task: The task description for the browser agent.
-
-    Returns:
-        Raw stdout from Saik0s CLI.
-
-    Raises:
-        subprocess.CalledProcessError: If CLI execution fails.
-        TimeoutError: If execution exceeds timeout.
-    """
     config = _get_agent_config()
     timeout = config["timeout_sec"]
+    retry_max = max(1, config["retry_max"])
 
-    # Build command: use uvx to run mcp-browser-cli
-    cmd = [
-        sys.executable,
-        "-m",
-        "mcp_server_browser_use.cli",
-        "run-browser-agent",
-        task,
-    ]
+    cmd = ["mcp-browser-cli", "-e", ".env", "run-browser-agent", task]
+    env = os.environ.copy()
 
-    logger.info("Running Saik0s CLI", cmd=cmd, timeout=timeout)
+    logger.info("Running Saik0s CLI", cmd=cmd, timeout=timeout, retries=retry_max)
 
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            env=os.environ.copy(),
-        )
+    retryer = Retrying(
+        stop=stop_after_attempt(retry_max),
+        wait=wait_fixed(2),
+        reraise=True,
+    )
 
-        if result.returncode != 0:
-            logger.error(
-                "Saik0s CLI failed",
-                returncode=result.returncode,
-                stderr=result.stderr,
-            )
-            raise subprocess.CalledProcessError(
-                result.returncode, cmd, output=result.stdout, stderr=result.stderr
-            )
+    for attempt in retryer:
+        with attempt:
+            try:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    env=env,
+                )
 
-        logger.info("Saik0s CLI succeeded", output_len=len(result.stdout))
-        return result.stdout
+                if result.returncode != 0:
+                    combined_output = (result.stdout or "") + (result.stderr or "")
+                    logger.error(
+                        "Saik0s CLI failed",
+                        returncode=result.returncode,
+                        stderr=result.stderr,
+                    )
+                    raise subprocess.CalledProcessError(
+                        result.returncode, cmd, output=combined_output, stderr=result.stderr
+                    )
 
-    except subprocess.TimeoutExpired as e:
-        logger.error("Saik0s CLI timeout", timeout=timeout)
-        raise TimeoutError(f"Saik0s CLI timed out after {timeout}s") from e
+                logger.info("Saik0s CLI succeeded", output_len=len(result.stdout))
+                return result.stdout
+
+            except subprocess.TimeoutExpired as e:
+                logger.error("Saik0s CLI timeout", timeout=timeout)
+                raise TimeoutError(f"Saik0s CLI timed out after {timeout}s") from e
 
 
 def run_browser_agent(task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -113,11 +104,11 @@ def run_browser_agent(task: str, context: dict[str, Any] | None = None) -> dict[
             "ok": True,
             "result_text": result_text,
         }
-    except (subprocess.CalledProcessError, TimeoutError) as e:
+    except (subprocess.CalledProcessError, TimeoutError, RetryError) as e:
         logger.error("Browser agent execution failed", error=str(e))
         return {
             "ok": False,
-            "result_text": "",
+            "result_text": getattr(e, "output", ""),
             "error": str(e),
         }
 
