@@ -39,7 +39,7 @@ def _run_saik0s_cli(task: str) -> str:
     timeout = config["timeout_sec"]
     retry_max = max(1, config["retry_max"])
 
-    cmd = ["mcp-browser-cli", "-e", ".env", "run-browser-agent", task]
+    cmd = ["mcp-server-browser-use", "-e", ".env", "run-browser-agent", task]
     env = os.environ.copy()
 
     logger.info("Running Saik0s CLI", cmd=cmd, timeout=timeout, retries=retry_max)
@@ -79,6 +79,7 @@ def _run_saik0s_cli(task: str) -> str:
                 logger.error("Saik0s CLI timeout", timeout=timeout)
                 raise TimeoutError(f"Saik0s CLI timed out after {timeout}s") from e
 
+    raise RuntimeError("Unexpected: Saik0s CLI retry loop completed without return or raise.")
 
 def run_browser_agent(task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
     """
