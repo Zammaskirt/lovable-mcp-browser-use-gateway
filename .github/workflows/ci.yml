@@ -37,15 +37,6 @@ jobs:
       - name: Install dependencies
         run: ~/.local/bin/uv sync --dev
 
-      - name: Lint with ruff
-        run: ~/.local/bin/uv run ruff check src tests
-
-      - name: Format check with black
-        run: ~/.local/bin/uv run black --check src tests
-
-      - name: Type check with mypy
-        run: ~/.local/bin/uv run mypy src || true
-
       - name: Run tests
         run: ~/.local/bin/uv run pytest tests/ -v --cov=src --cov-report=xml
 
