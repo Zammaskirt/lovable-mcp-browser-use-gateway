@@ -137,6 +137,12 @@ def _run_saik0s_cli(task: str) -> str:
                 browser_width = int(os.getenv('MCP_BROWSER_WINDOW_WIDTH', '1440'))
                 browser_height = int(os.getenv('MCP_BROWSER_WINDOW_HEIGHT', '1080'))
 
+                # Create temporary directories for agent history and traces
+                import tempfile
+                temp_dir = tempfile.gettempdir()
+                agent_history_dir = os.path.join(temp_dir, 'browser_agent_history')
+                os.makedirs(agent_history_dir, exist_ok=True)
+
                 # Call the function directly with all required parameters
                 result = asyncio.run(asyncio.wait_for(
                     run_browser_agent(
@@ -154,7 +160,7 @@ def _run_saik0s_cli(task: str) -> str:
                         window_w=browser_width,
                         window_h=browser_height,
                         save_recording_path=None,
-                        save_agent_history_path=None,
+                        save_agent_history_path=agent_history_dir,
                         save_trace_path=None,
                         enable_recording=False,
                         task=task,
