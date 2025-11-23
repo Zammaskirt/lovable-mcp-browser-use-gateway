@@ -14,18 +14,19 @@ import os
 import re
 import time
 import uuid
-from typing import Any, Dict, Optional
+from contextlib import asynccontextmanager
+from typing import Any, AsyncGenerator, Callable, Dict, Optional
 
 import structlog
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
-from fastapi_mcp import FastApiMCP
+from fastapi.responses import JSONResponse, Response
+from fastapi_mcp import FastApiMCP  # type: ignore[import-untyped]
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from src.agent_runner import run_browser_agent_async
+from .agent_runner import run_browser_agent_async
 
 # Load environment variables from .env file
 load_dotenv()
@@ -45,11 +46,26 @@ _concurrency_semaphore = asyncio.Semaphore(AGENT_CONCURRENCY)
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Manage application lifespan events."""
+    # Startup: Eagerly start the MCP HTTP session manager to avoid cold-start race conditions
+    transport = getattr(app.state, "_mcp_transport", None)
+    if transport is None:
+        # Get transport from mcp object
+        transport = getattr(mcp, "_http_transport", None)
+    if transport is not None:
+        await transport._ensure_session_manager_started()  # type: ignore[attr-defined]
+    yield
+    # Shutdown: cleanup if needed
+
+
 # FastAPI app
 app = FastAPI(
     title="Lovable MCP Gateway",
     version=VERSION,
     description="Production HTTP gateway for Lovable automation",
+    lifespan=lifespan,
 )
 
 app.state.limiter = limiter
@@ -73,8 +89,8 @@ class RunOutput(BaseModel):
     error_code: Optional[str] = None
     message: Optional[str] = None
     run_id: Optional[str] = None
-    steps: list[dict[str, Any]] = Field(default_factory=list)
-    debug: dict[str, Any] = Field(default_factory=dict)
+    steps: list[dict[str, Any]] = Field(default_factory=lambda: [])
+    debug: dict[str, Any] = Field(default_factory=lambda: {})
     elapsed_sec: Optional[float] = None
 
 
@@ -108,7 +124,7 @@ def _map_error_code(error: str) -> str:
 
 
 @app.middleware("http")
-async def auth_middleware(request: Request, call_next):
+async def auth_middleware(request: Request, call_next: Callable[[Request], Any]) -> Response:
     """Verify Bearer token on protected endpoints, including /tools and /mcp."""
     path = request.url.path
     if path in ["/health", "/docs", "/openapi.json"]:
@@ -134,7 +150,7 @@ async def auth_middleware(request: Request, call_next):
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> Dict[str, Any]:
     """Health check endpoint."""
     return {
         "ok": True,
@@ -150,8 +166,8 @@ async def health_check():
     summary="Run Lovable browser agent",
     operation_id="run_browser_agent",
 )
-@limiter.limit(f"{RATE_LIMIT_PER_MIN}/minute")
-async def run_browser_agent_endpoint(payload: RunInput, request: Request) -> RunOutput:
+@limiter.limit(f"{RATE_LIMIT_PER_MIN}/minute")  # type: ignore[misc]
+async def run_browser_agent_endpoint(payload: RunInput, request: Request) -> RunOutput:  # noqa: ARG001
     """
     Execute a browser automation task.
 
@@ -233,14 +249,6 @@ async def run_browser_agent_endpoint(payload: RunInput, request: Request) -> Run
 # Mount MCP after routes are registered so middleware and schemas apply to /mcp.
 mcp = FastApiMCP(app)
 mcp.mount_http()
-
-
-@app.on_event("startup")
-async def _start_mcp_http_transport() -> None:
-    """Eagerly start the MCP HTTP session manager to avoid cold-start race conditions."""
-    transport = getattr(mcp, "_http_transport", None)
-    if transport is not None:
-        await transport._ensure_session_manager_started()  # type: ignore[attr-defined]
 
 
 if __name__ == "__main__":
