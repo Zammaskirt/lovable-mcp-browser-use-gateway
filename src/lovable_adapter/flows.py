@@ -50,7 +50,7 @@ async def open_or_create_project(page: Page, project_name: str) -> bool:
         project_link = page.locator(f'text="{project_name}"')
         if await project_link.count() > 0:
             await project_link.first.click()
-            await page.wait_for_load_state("networkidle", timeout=DEFAULT_TIMEOUT)
+            await page.wait_for_load_state("load", timeout=DEFAULT_TIMEOUT)
             return True
 
         # Create new project
@@ -59,7 +59,7 @@ async def open_or_create_project(page: Page, project_name: str) -> bool:
             await create_btn.click()
             await page.fill('input[placeholder*="name"]', project_name)
             await page.click('button:has-text("Create")')
-            await page.wait_for_load_state("networkidle", timeout=DEFAULT_TIMEOUT)
+            await page.wait_for_load_state("load", timeout=DEFAULT_TIMEOUT)
             return True
 
         return False

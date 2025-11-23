@@ -17,6 +17,7 @@ import uuid
 from typing import Any, Dict, Optional
 
 import structlog
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi_mcp import FastApiMCP
@@ -25,6 +26,9 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from src.agent_runner import run_browser_agent_async
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = structlog.get_logger(__name__)
 

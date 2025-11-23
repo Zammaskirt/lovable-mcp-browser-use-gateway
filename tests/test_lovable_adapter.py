@@ -211,3 +211,33 @@ class TestFlows:
 
         result = await flows.extract_preview_url(page)
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_extract_preview_url_from_content(self):
+        """Test extract_preview_url extracts from page content."""
+        page = AsyncMock()
+        locator_mock = AsyncMock()
+        locator_mock.count = AsyncMock(return_value=0)
+        page.locator = MagicMock(return_value=locator_mock)
+        page.content = AsyncMock(return_value="Visit https://myapp.lovable.dev for preview")
+
+        result = await flows.extract_preview_url(page)
+        assert result is not None
+        assert "lovable.dev" in result
+
+    @pytest.mark.asyncio
+    async def test_open_or_create_project_create_new(self):
+        """Test open_or_create_project creates new project."""
+        page = AsyncMock()
+        project_link = AsyncMock()
+        project_link.count = AsyncMock(return_value=0)
+        create_btn = AsyncMock()
+        create_btn.count = AsyncMock(return_value=1)
+        create_btn.click = AsyncMock()
+        page.locator = MagicMock(side_effect=[project_link, create_btn])
+        page.fill = AsyncMock()
+        page.click = AsyncMock()
+        page.wait_for_load_state = AsyncMock()
+
+        result = await flows.open_or_create_project(page, "NewProject")
+        assert result is True
