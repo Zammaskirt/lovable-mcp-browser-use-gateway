@@ -37,26 +37,27 @@ def _get_agent_config() -> dict[str, Any]:
 
 def _run_saik0s_cli(task: str) -> str:
     """Run Saik0s CLI via subprocess with comprehensive diagnostics."""
-    
+
     start_time = time.time()
     config = _get_agent_config()
-    timeout = 30
+    timeout = int(os.getenv("MCP_AGENT_TIMEOUT_SEC", "600"))
     retry_max = max(1, config["retry_max"])
 
-    # Load environment variables from .env file
-    load_dotenv(dotenv_path='.env')
-    
-    # Build command with proper environment file loading
-    cmd = ["mcp-server-browser-use", "-e", ".env", "run-browser-agent", task]
-    
-    # Get environment from loaded .env file and current environment
+    # Load environment variables from .env file if it exists
+    # In production, environment variables are set via Fly.io secrets
+    load_dotenv(dotenv_path='.env', override=False)
+
+    # Build command - environment variables are passed via os.environ
+    cmd = ["mcp-server-browser-use", "run-browser-agent", task]
+
+    # Get environment from current environment
     cli_env = os.environ.copy()
-    
-    # Validate and set environment variables from .env
+
+    # Validate and set environment variables
     openrouter_key = os.getenv('MCP_LLM_OPENROUTER_API_KEY', '')
     auth_path = os.getenv('MCP_AUTH_STATE_PATH', './auth.json')
-    
-    # Set critical environment variables
+
+    # Set critical environment variables for the subprocess
     cli_env['OPENAI_API_KEY'] = openrouter_key
     cli_env['PATIENT'] = 'true'
     cli_env['BROWSER_USE_STORAGE_STATE'] = auth_path
@@ -64,13 +65,19 @@ def _run_saik0s_cli(task: str) -> str:
     # COMPREHENSIVE DIAGNOSTICS: Environment validation
     logger.info("=== CLI SUBPROCESS DIAGNOSTICS START ===")
     logger.info("Task execution started", task=task, timestamp=time.time())
-    
-    # Environment reload verification
-    logger.info("ENVIRONMENT RELOAD VERIFICATION:")
+
+    # Environment validation - check for required variables
+    logger.info("ENVIRONMENT VALIDATION:")
     env_after_load = os.getenv('MCP_LLM_OPENROUTER_API_KEY', '')
+    has_api_key = bool(env_after_load and len(env_after_load) > 10)
+
+    if not has_api_key:
+        logger.error("CRITICAL: MCP_LLM_OPENROUTER_API_KEY not set or too short",
+                    api_key_length=len(env_after_load) if env_after_load else 0)
+
     logger.info("Environment after .env load",
                api_key_length_after_load=len(env_after_load) if env_after_load else 0,
-               has_key_after_load=bool(env_after_load and len(env_after_load) > 10))
+               has_key_after_load=has_api_key)
     
     # Browser initialization checks
     logger.info("BROWSER INITIALIZATION DIAGNOSTICS:")
@@ -106,6 +113,7 @@ def _run_saik0s_cli(task: str) -> str:
     logger.info("Command assembly", cmd=cmd)
     logger.info("Environment setup", env_vars_count=len(cli_env), critical_env_vars=['OPENAI_API_KEY', 'PATIENT', 'BROWSER_USE_STORAGE_STATE'])
     
+    subprocess.run(["mcp-server-browser-use", "--version"], timeout=10, check=True)
     retryer = Retrying(
         stop=stop_after_attempt(retry_max),
         wait=wait_fixed(2),
@@ -264,11 +272,13 @@ def run_browser_agent(task: str, context: dict[str, Any] | None = None) -> dict[
         logger.info("run_browser_agent called", task=task)
         result_text = _run_saik0s_cli(task)
         if not result_text.strip():
-            logger.error("Saik0s CLI returned empty output")
+            logger.error("Saik0s CLI returned empty output - check environment variables",
+                        api_key_set=bool(os.getenv('MCP_LLM_OPENROUTER_API_KEY')),
+                        auth_path=os.getenv('MCP_AUTH_STATE_PATH'))
             return {
                 "ok": False,
                 "result_text": result_text,
-                "error": "Browser agent returned no output",
+                "error": "Browser agent returned no output - check MCP_LLM_OPENROUTER_API_KEY and MCP_AUTH_STATE_PATH",
             }
         return {
             "ok": True,
