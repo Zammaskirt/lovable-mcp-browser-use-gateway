@@ -140,7 +140,7 @@ def _run_saik0s_cli(task: str) -> str:
                 # Call the function directly with all required parameters
                 result = asyncio.run(asyncio.wait_for(
                     run_browser_agent(
-                        agent_type='default',
+                        agent_type='org',
                         llm_provider=llm_provider,
                         llm_model_name=llm_model_name,
                         llm_num_ctx=llm_num_ctx,
