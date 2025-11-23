@@ -25,11 +25,13 @@ jobs:
             flyctl secrets set AUTH_JSON_B64="${AUTH_JSON_B64}" --app lovable-mcp-gateway
             echo "✓ AUTH_JSON_B64 secret set successfully"
           else
-            echo "⚠ auth.json not found. Skipping secret setup."
-            echo "Note: If auth.json is needed, ensure it exists in the repository root."
+            echo "⚠ auth.json not found in GitHub Actions environment."
+            echo "Note: AUTH_JSON_B64 secret must be set manually via: flyctl secrets set AUTH_JSON_B64=<base64-encoded-auth.json>"
+            echo "The secret will persist in Fly.io for future deployments."
           fi
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        continue-on-error: true
 
       - name: Deploy to Fly.io
         run: flyctl deploy --remote-only --wait-timeout 900
