@@ -7,7 +7,6 @@ to execute browser automation tasks. All environment variables are read from the
 
 import asyncio
 import os
-import sys
 import time
 from typing import Any
 
@@ -50,6 +49,10 @@ def _run_saik0s_cli(task: str) -> str:
     openrouter_key = os.getenv('MCP_LLM_OPENROUTER_API_KEY', '')
     auth_path = os.getenv('MCP_AUTH_STATE_PATH', './auth.json')
 
+    # Convert relative path to absolute path for production compatibility
+    auth_path = os.path.abspath(auth_path)
+    auth_exists = os.path.exists(auth_path)
+
     # Set critical environment variables
     os.environ['OPENAI_API_KEY'] = openrouter_key
     os.environ['PATIENT'] = 'true'
@@ -86,7 +89,8 @@ def _run_saik0s_cli(task: str) -> str:
     logger.info("Auth state validation",
                auth_file_path=auth_path,
                auth_file_exists=auth_file_exists,
-               auth_file_size_bytes=auth_file_size)
+               auth_file_size_bytes=auth_file_size,
+               auth_exists_flag=auth_exists)
 
     # LLM API validation
     logger.info("LLM API DIAGNOSTICS:")
@@ -119,7 +123,7 @@ def _run_saik0s_cli(task: str) -> str:
 
             try:
                 # Import and call the run_browser_agent function directly
-                from mcp_server_browser_use.run_agents import run_browser_agent
+                from mcp_server_browser_use.run_agents import run_browser_agent  # type: ignore[import-not-found]
 
                 logger.info("Calling run_browser_agent directly",
                            timeout=timeout,
@@ -138,16 +142,22 @@ def _run_saik0s_cli(task: str) -> str:
                 browser_height = int(os.getenv('MCP_BROWSER_WINDOW_HEIGHT', '1080'))
 
                 # Create temporary directories for agent history and traces
-                import tempfile
-                temp_dir = tempfile.gettempdir()
+                import tempfile as tmp
+                temp_dir = tmp.gettempdir()
                 agent_history_dir = os.path.join(temp_dir, 'browser_agent_history')
                 trace_dir = os.path.join(temp_dir, 'browser_agent_traces')
                 os.makedirs(agent_history_dir, exist_ok=True)
                 os.makedirs(trace_dir, exist_ok=True)
 
+                # Log auth state before execution
+                logger.info("AUTHENTICATION STATE BEFORE EXECUTION:",
+                           auth_path=auth_path,
+                           auth_exists=auth_exists,
+                           env_storage_state=os.environ.get('BROWSER_USE_STORAGE_STATE', 'NOT SET'))
+
                 # Call the function directly with all required parameters
-                result = asyncio.run(asyncio.wait_for(
-                    run_browser_agent(
+                result: Any = asyncio.run(asyncio.wait_for(  # type: ignore[arg-type]
+                    run_browser_agent(  # type: ignore[call-arg]
                         agent_type='org',
                         llm_provider=llm_provider,
                         llm_model_name=llm_model_name,
@@ -216,7 +226,7 @@ def _run_saik0s_cli(task: str) -> str:
                 max_retries=retry_max)
     raise RuntimeError("Unexpected: Saik0s CLI retry loop completed without return or raise.")
 
-def run_browser_agent(task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+def run_browser_agent(task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:  # pylint: disable=unused-argument
     """
     Run a browser automation task via Saik0s.
 
