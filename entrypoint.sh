@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -euo pipefail
 
 # Trigger deployment to pick up AUTH_JSON_B64 secret
