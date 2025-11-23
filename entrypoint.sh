@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 set -eu
 
 # Handle auth.json from environment variable if provided
@@ -14,11 +14,11 @@ if [ -n "${AUTH_JSON_B64:-}" ]; then
 
     # Verify the file was created
     if [ -f "${AUTH_DIR}/auth.json" ]; then
-        echo "✓ auth.json successfully deployed to ${AUTH_DIR}/auth.json"
+        echo " auth.json successfully deployed to ${AUTH_DIR}/auth.json"
         # Also set MCP_AUTH_STATE_PATH for the application
         export MCP_AUTH_STATE_PATH="${AUTH_DIR}/auth.json"
     else
-        echo "✗ Failed to create auth.json"
+        echo " Failed to create auth.json"
         exit 1
     fi
 else
@@ -28,4 +28,3 @@ else
 fi
 
 exec uvicorn src.server:app --host 0.0.0.0 --port "${PORT:-8080}"
-
