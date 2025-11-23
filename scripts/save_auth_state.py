@@ -125,6 +125,9 @@ async def save_auth_state(output_path: str | None = None) -> None:
             if login_detected:
                 print()
                 print("✅ Login detected automatically!")
+                # Wait a bit longer to ensure localStorage is populated
+                print("   Waiting for localStorage to populate...")
+                await page.wait_for_timeout(3000)  # Wait 3 seconds
             else:
                 print()
                 print("⚠️  Could not auto-detect login")
@@ -150,6 +153,16 @@ async def save_auth_state(output_path: str | None = None) -> None:
 
             # Save storage state
             storage_state = await context.storage_state()
+
+            # Debug: Check what we're saving
+            print(f"   Storage state type: {type(storage_state).__name__}")
+            if isinstance(storage_state, dict):
+                print(f"   Cookies: {len(storage_state.get('cookies', []))}")
+                print(f"   Origins: {len(storage_state.get('origins', []))}")
+                origins = storage_state.get('origins', [])
+                for origin in origins:
+                    ls = origin.get('localStorage', [])
+                    print(f"     - {origin.get('origin')}: {len(ls)} localStorage items")
 
             with open(output_file, "w") as f:
                 json.dump(storage_state, f, indent=2)
