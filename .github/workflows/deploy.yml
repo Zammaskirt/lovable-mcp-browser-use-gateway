@@ -17,6 +17,20 @@ jobs:
       - name: Set up Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
 
+      - name: Set auth.json as Fly.io secret
+        run: |
+          if [ -f auth.json ]; then
+            echo "Encoding auth.json to base64 and setting as Fly.io secret..."
+            AUTH_JSON_B64=$(cat auth.json | base64 -w 0)
+            flyctl secrets set AUTH_JSON_B64="${AUTH_JSON_B64}" --app lovable-mcp-gateway
+            echo "✓ AUTH_JSON_B64 secret set successfully"
+          else
+            echo "⚠ auth.json not found. Skipping secret setup."
+            echo "Note: If auth.json is needed, ensure it exists in the repository root."
+          fi
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
       - name: Deploy to Fly.io
         run: flyctl deploy --remote-only --wait-timeout 900
         env:

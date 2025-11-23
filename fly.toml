@@ -54,10 +54,10 @@ grace_period = "10s"
 interval = "30s"
 timeout = "5s"
 
-# Optional: Volume for artifacts (uncomment if needed)
-# [[mounts]]
-# source = "lovable_data"
-# destination = "/data"
+# Volume for persistent auth state storage
+[[mounts]]
+source = "lovable_auth_state"
+destination = "/app/auth_state"
 
 # Machine configuration
 [vm]

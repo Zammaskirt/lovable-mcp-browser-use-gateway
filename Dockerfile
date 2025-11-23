@@ -27,10 +27,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Runtime utilities only
+# Runtime utilities only (including base64 for auth.json decoding)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
+    coreutils \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy prebuilt venv and app code
