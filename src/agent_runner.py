@@ -1,13 +1,12 @@
 """
 Saik0s delegation layer for browser automation.
 
-This module delegates to the mcp-browser-cli CLI to avoid internal import instability.
-All environment variables are read by Saik0s from the process environment.
+This module directly calls the mcp_server_browser_use.run_agents.run_browser_agent function
+to execute browser automation tasks. All environment variables are read from the process environment.
 """
 
 import asyncio
 import os
-import subprocess
 import sys
 import time
 from typing import Any
@@ -36,7 +35,7 @@ def _get_agent_config() -> dict[str, Any]:
 
 
 def _run_saik0s_cli(task: str) -> str:
-    """Run Saik0s CLI via subprocess with comprehensive diagnostics."""
+    """Run browser agent using the mcp_server_browser_use Python API directly."""
 
     start_time = time.time()
     config = _get_agent_config()
@@ -47,24 +46,17 @@ def _run_saik0s_cli(task: str) -> str:
     # In production, environment variables are set via Fly.io secrets
     load_dotenv(dotenv_path='.env', override=False)
 
-    # Build command - use uv run mcp-browser-cli instead of mcp-server-browser-use
-    # mcp-server-browser-use is the MCP server, mcp-browser-cli is the CLI tool
-    cmd = ["uv", "run", "mcp-browser-cli", "run-browser-agent", task]
-
-    # Get environment from current environment
-    cli_env = os.environ.copy()
-
     # Validate and set environment variables
     openrouter_key = os.getenv('MCP_LLM_OPENROUTER_API_KEY', '')
     auth_path = os.getenv('MCP_AUTH_STATE_PATH', './auth.json')
 
-    # Set critical environment variables for the subprocess
-    cli_env['OPENAI_API_KEY'] = openrouter_key
-    cli_env['PATIENT'] = 'true'
-    cli_env['BROWSER_USE_STORAGE_STATE'] = auth_path
-    
+    # Set critical environment variables
+    os.environ['OPENAI_API_KEY'] = openrouter_key
+    os.environ['PATIENT'] = 'true'
+    os.environ['BROWSER_USE_STORAGE_STATE'] = auth_path
+
     # COMPREHENSIVE DIAGNOSTICS: Environment validation
-    logger.info("=== CLI SUBPROCESS DIAGNOSTICS START ===")
+    logger.info("=== BROWSER AGENT EXECUTION START ===")
     logger.info("Task execution started", task=task, timestamp=time.time())
 
     # Environment validation - check for required variables
@@ -79,14 +71,14 @@ def _run_saik0s_cli(task: str) -> str:
     logger.info("Environment after .env load",
                api_key_length_after_load=len(env_after_load) if env_after_load else 0,
                has_key_after_load=has_api_key)
-    
+
     # Browser initialization checks
     logger.info("BROWSER INITIALIZATION DIAGNOSTICS:")
     browser_headless = os.getenv('MCP_BROWSER_HEADLESS', 'true')
     browser_width = os.getenv('MCP_BROWSER_WINDOW_WIDTH', '1440')
     browser_height = os.getenv('MCP_BROWSER_WINDOW_HEIGHT', '1080')
     logger.info("Browser config", headless=browser_headless, width=browser_width, height=browser_height)
-    
+
     # Auth state validation
     logger.info("AUTHENTICATION DIAGNOSTICS:")
     auth_file_exists = os.path.exists(auth_path)
@@ -95,7 +87,7 @@ def _run_saik0s_cli(task: str) -> str:
                auth_file_path=auth_path,
                auth_file_exists=auth_file_exists,
                auth_file_size_bytes=auth_file_size)
-    
+
     # LLM API validation
     logger.info("LLM API DIAGNOSTICS:")
     llm_provider = os.getenv('MCP_LLM_PROVIDER', 'openrouter')
@@ -108,11 +100,11 @@ def _run_saik0s_cli(task: str) -> str:
                temperature=llm_temp,
                has_api_key=has_api_key,
                api_key_length=len(openrouter_key) if openrouter_key else 0)
-    
-    # Subprocess preparation
-    logger.info("SUBPROCESS PREPARATION:")
-    logger.info("Command assembly", cmd=cmd)
-    logger.info("Environment setup", env_vars_count=len(cli_env), critical_env_vars=['OPENAI_API_KEY', 'PATIENT', 'BROWSER_USE_STORAGE_STATE'])
+
+    # Direct Python API execution
+    logger.info("DIRECT PYTHON API EXECUTION:")
+    logger.info("Using mcp_server_browser_use.run_agents.run_browser_agent")
+
     retryer = Retrying(
         stop=stop_after_attempt(retry_max),
         wait=wait_fixed(2),
@@ -124,120 +116,49 @@ def _run_saik0s_cli(task: str) -> str:
             attempt_start = time.time()
             logger.info(f"Attempt {attempt.retry_state.attempt_number} started",
                        attempt_time=attempt_start - start_time)
-            
+
             try:
-                # COMPREHENSIVE SUBPROCESS EXECUTION WITH DETAILED MONITORING
-                logger.info("Subprocess execution started",
+                # Import and call the run_browser_agent function directly
+                from mcp_server_browser_use.run_agents import run_browser_agent
+
+                logger.info("Calling run_browser_agent directly",
                            timeout=timeout,
-                           working_directory=os.getcwd(),
-                           python_executable=sys.executable)
-                
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    env=cli_env,
-                    cwd=os.getcwd()
-                )
-                
-                logger.info("Process spawned",
-                           process_id=process.pid,
-                           creation_time=time.time())
-                
-                try:
-                    # Monitor subprocess with timeout
-                    stdout, stderr = process.communicate(timeout=timeout)
-                    elapsed = time.time() - attempt_start
-                    
-                    logger.info("=== SUBPROCESS LIFECYCLE COMPLETE ===")
-                    logger.info("Process completion",
-                               process_id=process.pid,
-                               elapsed_time=elapsed,
-                               return_code=process.returncode,
-                               stdout_length=len(stdout) if stdout else 0,
-                               stderr_length=len(stderr) if stderr else 0)
-                    
-                    # COMPREHENSIVE OUTPUT ANALYSIS
-                    combined_output = (stdout or "") + (stderr or "")
-                    
-                    if stdout:
-                        logger.info("STDOUT ANALYSIS (first 1000 chars)",
-                                   stdout_preview=stdout[:1000] + ("..." if len(stdout) > 1000 else ""))
-                    if stderr:
-                        logger.info("STDERR ANALYSIS (first 1000 chars)",
-                                   stderr_preview=stderr[:1000] + ("..." if len(stderr) > 1000 else ""))
-                    
-                    # ERROR ANALYSIS BY DOMAIN
-                    if process.returncode != 0:
-                        logger.error("=== CLI FAILURE ANALYSIS ===")
-                        logger.error("Return code analysis", returncode=process.returncode)
-                        
-                        # Browser initialization failures
-                        if "browser" in stderr.lower() or "playwright" in stderr.lower():
-                            logger.error("BROWSER DOMAIN FAILURE detected", browser_error=True)
-                        elif "chromium" in stderr.lower() or "chrome" in stderr.lower():
-                            logger.error("CHROMIUM DOMAIN FAILURE detected", chromium_error=True)
-                        
-                        # LLM API failures
-                        if "api" in stderr.lower() or "openrouter" in stderr.lower():
-                            logger.error("LLM API DOMAIN FAILURE detected", api_error=True)
-                        elif "key" in stderr.lower() or "auth" in stderr.lower():
-                            logger.error("API AUTH DOMAIN FAILURE detected", api_auth_error=True)
-                        
-                        # Authentication failures
-                        if "auth" in stderr.lower() or "login" in stderr.lower():
-                            logger.error("AUTHENTICATION DOMAIN FAILURE detected", auth_error=True)
-                        elif "session" in stderr.lower() or "token" in stderr.lower():
-                            logger.error("SESSION MANAGEMENT DOMAIN FAILURE detected", session_error=True)
-                        
-                        logger.error("CLI failure details",
-                                   returncode=process.returncode,
-                                   stderr=stderr[:1000],
-                                   combined_output_preview=combined_output[:500])
-                        
-                        raise subprocess.CalledProcessError(
-                            process.returncode, cmd, output=combined_output, stderr=stderr
-                        )
+                           task=task)
 
-                    logger.info("=== CLI SUCCESS ANALYSIS ===")
-                    logger.info("Saik0s CLI succeeded",
-                               output_length=len(combined_output),
-                               success_time=time.time() - start_time)
-                    return combined_output
+                # Call the function directly with timeout
+                result = asyncio.run(asyncio.wait_for(
+                    asyncio.create_task(run_browser_agent(task)),
+                    timeout=timeout
+                ))
 
-                except subprocess.TimeoutExpired as e:
-                    elapsed = time.time() - attempt_start
-                    logger.error("=== CLI TIMEOUT ANALYSIS ===")
-                    logger.error("Subprocess timeout",
-                                timeout=timeout,
-                                elapsed=elapsed,
-                                process_id=process.pid)
-                    
-                    # Attempt to get partial output if any
-                    try:
-                        stdout_partial, stderr_partial = process.communicate(timeout=5)
-                        logger.error("Partial output after timeout",
-                                   stdout_partial_length=len(stdout_partial) if stdout_partial else 0,
-                                   stderr_partial_length=len(stderr_partial) if stderr_partial else 0,
-                                   stdout_preview=stdout_partial[:500] if stdout_partial else "",
-                                   stderr_preview=stderr_partial[:500] if stderr_partial else "")
-                    except:
-                        logger.error("Could not retrieve partial output after timeout")
-                    
-                    # Kill process if still running
-                    try:
-                        process.kill()
-                        process.wait(timeout=5)
-                    except:
-                        logger.error("Failed to kill process after timeout")
-                    
-                    raise TimeoutError(f"Saik0s CLI timed out after {timeout}s") from e
+                elapsed = time.time() - attempt_start
+
+                logger.info("=== EXECUTION COMPLETE ===")
+                logger.info("Browser agent execution succeeded",
+                           elapsed_time=elapsed,
+                           result_type=type(result).__name__)
+
+                # Convert result to string if needed
+                result_text = str(result) if result else ""
+
+                logger.info("=== EXECUTION SUCCESS ===")
+                logger.info("Browser agent succeeded",
+                           output_length=len(result_text),
+                           success_time=time.time() - start_time)
+                return result_text
+
+            except asyncio.TimeoutError as e:
+                elapsed = time.time() - attempt_start
+                logger.error("=== EXECUTION TIMEOUT ===")
+                logger.error("Browser agent timeout",
+                            timeout=timeout,
+                            elapsed=elapsed)
+                raise TimeoutError(f"Browser agent timed out after {timeout}s") from e
 
             except Exception as e:
                 elapsed = time.time() - attempt_start
-                logger.error("=== UNEXPECTED ERROR ANALYSIS ===")
-                logger.error("Subprocess execution error",
+                logger.error("=== EXECUTION ERROR ===")
+                logger.error("Browser agent execution error",
                            error_type=type(e).__name__,
                            error_message=str(e),
                            elapsed=elapsed)
@@ -283,11 +204,18 @@ def run_browser_agent(task: str, context: dict[str, Any] | None = None) -> dict[
             "ok": True,
             "result_text": result_text,
         }
-    except (subprocess.CalledProcessError, TimeoutError, RetryError) as e:
+    except (TimeoutError, RetryError) as e:
         logger.error("Browser agent execution failed", error=str(e))
         return {
             "ok": False,
-            "result_text": getattr(e, "output", ""),
+            "result_text": "",
+            "error": str(e),
+        }
+    except Exception as e:
+        logger.error("Browser agent execution failed with unexpected error", error=str(e), error_type=type(e).__name__)
+        return {
+            "ok": False,
+            "result_text": "",
             "error": str(e),
         }
 
