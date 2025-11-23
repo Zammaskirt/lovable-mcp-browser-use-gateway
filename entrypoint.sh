@@ -1,7 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# Trigger deployment to pick up AUTH_JSON_B64 secret
 # Handle auth.json from environment variable if provided
 if [ -n "${AUTH_JSON_B64:-}" ]; then
     echo "Decoding auth.json from environment variable..."
