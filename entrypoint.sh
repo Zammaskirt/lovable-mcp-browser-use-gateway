@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -eu
 
 # Handle auth.json from environment variable if provided
 if [ -n "${AUTH_JSON_B64:-}" ]; then
