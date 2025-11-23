@@ -36,6 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy prebuilt venv and app code
+# Cache bust: 2025-11-23-entrypoint-fix-v2
 COPY --from=builder /app/.venv /app/.venv
 COPY src/ ./src/
 COPY entrypoint.sh .
