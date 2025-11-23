@@ -141,7 +141,9 @@ def _run_saik0s_cli(task: str) -> str:
                 import tempfile
                 temp_dir = tempfile.gettempdir()
                 agent_history_dir = os.path.join(temp_dir, 'browser_agent_history')
+                trace_dir = os.path.join(temp_dir, 'browser_agent_traces')
                 os.makedirs(agent_history_dir, exist_ok=True)
+                os.makedirs(trace_dir, exist_ok=True)
 
                 # Call the function directly with all required parameters
                 result = asyncio.run(asyncio.wait_for(
@@ -161,7 +163,7 @@ def _run_saik0s_cli(task: str) -> str:
                         window_h=browser_height,
                         save_recording_path=None,
                         save_agent_history_path=agent_history_dir,
-                        save_trace_path=None,
+                        save_trace_path=trace_dir,
                         enable_recording=False,
                         task=task,
                         add_infos='',
