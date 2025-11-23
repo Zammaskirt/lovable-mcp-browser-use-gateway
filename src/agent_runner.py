@@ -43,6 +43,7 @@ def _run_saik0s_cli(task: str) -> str:
     env = os.environ.copy()
 
     logger.info("Running Saik0s CLI", cmd=cmd, timeout=timeout, retries=retry_max)
+    logger.info("Environment variables", auth_path=env.get("MCP_AUTH_STATE_PATH"), llm_provider=env.get("MCP_LLM_PROVIDER"))
 
     retryer = Retrying(
         stop=stop_after_attempt(retry_max),
@@ -62,6 +63,12 @@ def _run_saik0s_cli(task: str) -> str:
                 )
 
                 combined_output = (result.stdout or "") + (result.stderr or "")
+                logger.info("Saik0s CLI raw output", stdout_len=len(result.stdout or ""), stderr_len=len(result.stderr or ""), returncode=result.returncode)
+                if result.stdout:
+                    logger.info("Saik0s stdout", stdout=result.stdout[:500])
+                if result.stderr:
+                    logger.info("Saik0s stderr", stderr=result.stderr[:500])
+
                 if result.returncode != 0:
                     logger.error(
                         "Saik0s CLI failed",
