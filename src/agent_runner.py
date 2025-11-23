@@ -47,8 +47,9 @@ def _run_saik0s_cli(task: str) -> str:
     # In production, environment variables are set via Fly.io secrets
     load_dotenv(dotenv_path='.env', override=False)
 
-    # Build command - environment variables are passed via os.environ
-    cmd = ["mcp-server-browser-use", "run-browser-agent", task]
+    # Build command - use uv run mcp-browser-cli instead of mcp-server-browser-use
+    # mcp-server-browser-use is the MCP server, mcp-browser-cli is the CLI tool
+    cmd = ["uv", "run", "mcp-browser-cli", "run-browser-agent", task]
 
     # Get environment from current environment
     cli_env = os.environ.copy()
