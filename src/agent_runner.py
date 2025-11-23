@@ -125,9 +125,47 @@ def _run_saik0s_cli(task: str) -> str:
                            timeout=timeout,
                            task=task)
 
-                # Call the function directly with timeout
+                # Get configuration from environment
+                llm_provider = os.getenv('MCP_LLM_PROVIDER', 'openrouter')
+                llm_model_name = os.getenv('MCP_LLM_MODEL_NAME', 'openai/gpt-5-mini')
+                llm_num_ctx = int(os.getenv('MCP_LLM_NUM_CTX', '8000'))
+                llm_temperature = float(os.getenv('MCP_LLM_TEMPERATURE', '0.2'))
+                llm_base_url = os.getenv('MCP_LLM_BASE_URL', 'https://openrouter.ai/api/v1')
+                llm_api_key = os.getenv('MCP_LLM_OPENROUTER_API_KEY', '')
+
+                browser_headless = os.getenv('MCP_BROWSER_HEADLESS', 'true').lower() == 'true'
+                browser_width = int(os.getenv('MCP_BROWSER_WINDOW_WIDTH', '1440'))
+                browser_height = int(os.getenv('MCP_BROWSER_WINDOW_HEIGHT', '1080'))
+
+                # Call the function directly with all required parameters
                 result = asyncio.run(asyncio.wait_for(
-                    asyncio.create_task(run_browser_agent(task)),
+                    run_browser_agent(
+                        agent_type='default',
+                        llm_provider=llm_provider,
+                        llm_model_name=llm_model_name,
+                        llm_num_ctx=llm_num_ctx,
+                        llm_temperature=llm_temperature,
+                        llm_base_url=llm_base_url,
+                        llm_api_key=llm_api_key,
+                        use_own_browser=False,
+                        keep_browser_open=False,
+                        headless=browser_headless,
+                        disable_security=False,
+                        window_w=browser_width,
+                        window_h=browser_height,
+                        save_recording_path=None,
+                        save_agent_history_path=None,
+                        save_trace_path=None,
+                        enable_recording=False,
+                        task=task,
+                        add_infos='',
+                        max_steps=100,
+                        use_vision=True,
+                        max_actions_per_step=10,
+                        tool_calling_method='auto',
+                        chrome_cdp=None,
+                        max_input_tokens=8000
+                    ),
                     timeout=timeout
                 ))
 
