@@ -112,8 +112,6 @@ def _run_saik0s_cli(task: str) -> str:
     logger.info("SUBPROCESS PREPARATION:")
     logger.info("Command assembly", cmd=cmd)
     logger.info("Environment setup", env_vars_count=len(cli_env), critical_env_vars=['OPENAI_API_KEY', 'PATIENT', 'BROWSER_USE_STORAGE_STATE'])
-    
-    subprocess.run(["mcp-server-browser-use", "--version"], timeout=10, check=True)
     retryer = Retrying(
         stop=stop_after_attempt(retry_max),
         wait=wait_fixed(2),
