@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     coreutils \
+    bash \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy prebuilt venv and app code
@@ -54,4 +55,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Run application
-CMD ["sh", "entrypoint.sh"]
+CMD ["bash", "entrypoint.sh"]
